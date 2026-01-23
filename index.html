@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>園遊會全功能導覽</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        /* --- 1. 全域設定 --- */
+        :root {
+            --primary: #FF8C00;
+            --primary-light: #FFF5E6;
+            --text-main: #333;
+            --text-sub: #666;
+            --bg: #F4F5F7;
+            --white: #FFFFFF;
+            --danger: #FF4757;
+            --max-width: 480px; 
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", -apple-system, sans-serif;
+            background-color: #333; 
+            margin: 0; padding: 0;
+            color: var(--text-main);
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            display: flex; justify-content: center; min-height: 100vh;
+        }
+
+        /* --- 2. 核心容器 --- */
+        #app-container {
+            width: 100%; max-width: var(--max-width);
+            background-color: var(--bg);
+            min-height: 100vh; position: relative;
+            padding-bottom: 80px; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* --- 3. 登入畫面 --- */
+        #page-login {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #06C755, #21D4FD);
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white;
+        }
+        .login-box {
+            background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px;
+            width: 80%; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .login-input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; text-align: center; box-sizing: border-box;}
+        .btn-main {
+            width: 100%; padding: 12px; background: var(--primary); color: white;
+            border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-line { background: #06C755; }
+
+        /* --- 4. 頂部 Header --- */
+        .header {
+            position: sticky; top: 0; background: var(--white); z-index: 100;
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-weight: bold;
+        }
+        .page { display: none; animation: fadeIn 0.3s; padding: 10px; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- 5. 商品與分類 --- */
+        .cat-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 10px; scrollbar-width: none; }
+        .cat-btn { padding: 6px 14px; background: white; border: 1px solid #ddd; border-radius: 20px; white-space: nowrap; cursor: pointer; }
+        .cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .product-item { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+        .p-info { flex: 1; cursor: pointer; }
+        .p-name { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
+        .p-meta { font-size: 0.85rem; color: var(--text-sub); }
+        .tag-sale { background: #FFEDD5; color: #C2410C; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+        .btn-add { width: 35px; height: 35px; background: var(--primary-light); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; margin-left: 10px; flex-shrink: 0; }
+
+        /* --- 6. 地圖設定 (重要) --- */
+        .map-wrapper { position: relative; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .map-wrapper img { width: 100%; display: block; }
+        
+        /* 標記樣式 */
+        .pin { 
+            position: absolute; transform: translate(-50%, -50%); 
+            padding: 4px 8px; border-radius: 12px; 
+            font-size: 0.75rem; font-weight: bold; color: white; 
+            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            white-space: nowrap; z-index: 10; border: 2px solid white;
+        }
+        .pin:active { transform: translate(-50%, -50%) scale(0.9); }
+        .pin.stall { background: var(--primary); }
+        .pin.sale-highlight { background: var(--danger); animation: pulse 1s infinite; z-index: 12; }
+        .pin.me { background: #2ecc71; color: white; z-index: 5; }
+        .pin.stage { background: #3498db; z-index: 5; }
+        
+        @keyframes pulse { 0% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.2); } 100% { transform: translate(-50%,-50%) scale(1); } }
+        .map-actions { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
+
+        /* --- 7. 購物車與其他 --- */
+        .search-bar { width: 100%; padding: 12px; border: none; background: #E5E7EB; border-radius: 8px; font-size: 1rem; box-sizing: border-box; outline: none; }
+        .keyword-box { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .keyword { background: white; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; color: #555; cursor: pointer; border: 1px solid #eee; }
+        .checkout-box { background: white; padding: 20px; border-radius: 15px; margin-top: 20px; }
+        .delivery-option { background: #F9FAFB; padding: 15px; border-radius: 8px; margin: 15px 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
+        /* --- 8. 底部導覽列 --- */
+        .bottom-nav { 
+            position: fixed; bottom: 0; width: 100%; max-width: var(--max-width);
+            background: white; border-top: 1px solid #eee; 
+            display: flex; justify-content: space-around; 
+            padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); 
+            z-index: 900; box-sizing: border-box;
+        }
+        .nav-item { text-align: center; color: #999; font-size: 0.75rem; flex: 1; cursor: pointer; position: relative; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-icon { font-size: 1.5rem; display: block; margin-bottom: 2px; }
+        .badge { background: var(--danger); color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; position: absolute; top: -5px; left: 50%; margin-left: 5px; display: none; }
+
+        /* --- 9. 彈出視窗 --- */
+        .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; text-align: center; animation: popIn 0.3s; position: relative; }
+        .close-btn { position: absolute; right: 15px; top: 15px; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #999; }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .chest-container { display: flex; justify-content: center; gap: 15px; margin-top: 20px; margin-bottom: 10px; }
+        .chest { font-size: 3.5rem; cursor: pointer; transition: transform 0.2s; user-select: none; }
+        .chest:active { transform: scale(0.9); }
+        .chest.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
+        .chest-label { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+    </style>
+</head>
+<body onload="initLIFF()"> 
+
+<div id="app-container">
+
+    <div id="page-login">
+        <div class="login-box">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🎡</div>
+            <h2 style="margin: 0; color: #333;">園遊會導覽</h2>
+            <p id="login-msg" style="color: #666; font-size: 0.9rem;">正在連接...</p>
+            <div id="manual-login" style="display:none;">
+                <input type="text" id="login-user" class="login-input" placeholder="請輸入暱稱">
+                <button class="btn-main" onclick="handleManualLogin()">進入系統</button>
+            </div>
+            <button id="btn-line-login" class="btn-main btn-line" style="display:none; margin-top: 10px;" onclick="liff.login()">LINE 登入</button>
+        </div>
+    </div>
+
+    <header class="header" id="main-header" style="display:none;">
+        <span id="header-title">所有攤位</span>
+        <div style="display:flex; align-items:center; gap:5px;">
+            <img id="user-avatar" src="" style="width:24px; height:24px; border-radius:50%; display:none;">
+            <span style="font-size: 0.9rem; color: var(--primary);" id="user-display">訪客</span>
+        </div>
+    </header>
+
+    <div id="tab-classes" class="page">
+        <div class="cat-scroll">
+            <button class="cat-btn active" onclick="filterProducts('all', this)">全部</button>
+            <button class="cat-btn" onclick="filterProducts('商三乙', this)">商三乙</button>
+            <button class="cat-btn" onclick="filterProducts('服三乙', this)">服三乙</button>
+            <button class="cat-btn" onclick="filterProducts('家二乙', this)">家二乙</button>
+            <button class="cat-btn" onclick="filterProducts('服二甲', this)">服二甲</button>
+        </div>
+        <div id="product-list" style="margin-top: 15px;"></div>
+    </div>
+
+    <div id="tab-map" class="page">
+        <div class="map-wrapper">
+            <img src="img/園遊會地圖.jpg" alt="園遊會地圖" style="width:100%; display:block;" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
+            
+            <div class="pin stage" style="top: 12%; left: 35%;" onclick="alert('司令台：活動表演區')">司令台</div>
+
+            <div class="pin stall" id="pin-3y" style="top: 85%; left: 41%;" onclick="showProductDetailWithId(1)">商3乙</div>
+
+            <div class="pin stall" id="pin-f3" style="top: 85%; left: 46%;" onclick="showProductDetailWithId(3)">服3乙</div>
+
+            <div class="pin stall" id="pin-h2" style="top: 85%; left: 59%;" onclick="showProductDetailWithId(4)">家2乙</div>
+
+            <div class="pin stall" id="pin-f2" style="top: 20%; left: 69%;" onclick="showProductDetailWithId(5)">服2甲</div>
+
+            <div class="pin me" style="top: 85%; left: 8%;" onclick="alert('服務台 / 入口處')">服務台</div>
+
+        </div>
+
+        <div class="map-actions">
+            <button class="btn-main" style="width: auto; background: #F59E0B;" onclick="toggleIFood()">👁️ I珍食特價</button>
+            <button class="btn-main" style="width: auto; background: #8B5CF6;" onclick="initLottery()">🎰 寶箱抽獎</button>
+        </div>
+    </div>
+
+    <div id="tab-search" class="page">
+        <input type="text" class="search-bar" placeholder="🔍 搜尋攤位、炒麵..." oninput="doSearch(this.value)">
+        <div id="default-search-view">
+            <h4 style="margin: 15px 0 10px;">🔥 熱搜</h4>
+            <div class="keyword-box">
+                <span class="keyword" onclick="doSearch('珍奶')">珍奶</span>
+                <span class="keyword" onclick="doSearch('雞排')">雞排</span>
+                <span class="keyword" onclick="doSearch('乙')">乙班</span>
+            </div>
+            <h4 style="margin: 20px 0 10px;">🏆 排行榜</h4>
+            <div id="ranking-list"></div>
+        </div>
+        <div id="search-results" style="margin-top: 15px;"></div>
+    </div>
+
+    <div id="tab-cart" class="page">
+        <h3 style="margin-top: 0;">我的購物車</h3>
+        <div id="cart-content"></div>
+        <div id="checkout-section" class="checkout-box" style="display:none;">
+            <div style="display:flex; justify-content:space-between; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;">
+                <span>總金額</span>
+                <span id="total-price" style="color: var(--primary);">$0</span>
+            </div>
+            <label class="delivery-option">
+                <input type="checkbox" id="delivery-check" onchange="toggleDeliveryLocation()">
+                <span>🛵 需要外送？</span>
+            </label>
+            <div id="location-input-div" style="display:none; margin-bottom: 15px;">
+                <input type="text" id="delivery-location" class="search-bar" placeholder="輸入地點 (例: 201教室)" style="background: white; border: 1px solid var(--primary);">
+            </div>
+            <button class="btn-main btn-line" onclick="submitOrderWithLine()">💬 傳送訂單到 LINE</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav" id="main-nav" style="display:none;">
+        <div class="nav-item active" onclick="switchTab('classes', this)"><span class="nav-icon">🏠</span>班級</div>
+        <div class="nav-item" onclick="switchTab('map', this)"><span class="nav-icon">🗺️</span>地圖</div>
+        <div class="nav-item" onclick="switchTab('search', this)"><span class="nav-icon">🔍</span>搜尋</div>
+        <div class="nav-item" onclick="switchTab('cart', this)"><span class="nav-icon">🛒</span>預購<span class="badge" id="cart-badge">0</span></div>
+    </nav>
+
+    <div class="modal-overlay" id="info-modal" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="m-title"></h3>
+            <p id="m-desc" style="color: #666; line-height: 1.6; margin: 15px 0;"></p>
+            <div id="m-action"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ★★★ 請在此填入您的 LINE LIFF ID ★★★
+    const MY_LIFF_ID = "在此填入你的LIFF_ID"; 
+
+    // --- 資料 ---
+    const products = [
+        { id: 1, class: '商三乙', name: '特調珍珠奶茶', price: 50, tag: 'hot', desc: '每日現煮珍珠，本班招牌！', sold: 120 },
+        { id: 2, class: '商三乙', name: '大腸包小腸', price: 60, tag: '', desc: '正宗台式口味，蒜頭加爆。', sold: 85 },
+        { id: 3, class: '服三乙', name: '手工造型餅乾', price: 30, tag: '', desc: '純手工製作，造型可愛。', sold: 210 },
+        { id: 4, class: '家二乙', name: '日式炒泡麵', price: 55, tag: 'sale', desc: 'I珍食特價中！料多實在。', sold: 150 },
+        { id: 5, class: '服二甲', name: '乾冰汽水', price: 40, tag: '', desc: '冒煙的汽水，打卡必備！', sold: 95 },
+        { id: 6, class: '商三乙', name: '脆皮雞排', price: 70, tag: 'hot', desc: '現炸多汁，外酥內嫩。', sold: 300 }
+    ];
+
+    let cart = [];
+    let discount = 1;
+
+    async function initLIFF() {
+        try {
+            if(MY_LIFF_ID === "在此填入你的LIFF_ID") {
+                document.getElementById('login-msg').innerText = "尚未設定 LIFF ID";
+                document.getElementById('manual-login').style.display = 'block';
+                return;
+            }
+            await liff.init({ liffId: MY_LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                loginSuccess(profile.displayName, profile.pictureUrl);
+            } else {
+                document.getElementById('login-msg').innerText = "請登入";
+                document.getElementById('btn-line-login').style.display = 'block';
+                document.getElementById('manual-login').style.display = 'block';
+            }
+        } catch (err) {
+            document.getElementById('login-msg').innerText = "開發模式";
+            document.getElementById('manual-login').style.display = 'block';
+        }
+    }
+
+    function loginSuccess(name, avatarUrl) {
+        document.getElementById('user-display').innerText = name;
+        if(avatarUrl) {
+            document.getElementById('user-avatar').src = avatarUrl;
+            document.getElementById('user-avatar').style.display = 'block';
+        }
+        document.getElementById('page-login').style.display = 'none';
+        document.getElementById('main-header').style.display = 'flex';
+        document.getElementById('main-nav').style.display = 'flex';
+        switchTab('classes', document.querySelector('.nav-item'));
+        renderProducts(products);
+        renderRanking();
+    }
+
+    function handleManualLogin() {
+        const name = document.getElementById('login-user').value.trim();
+        if (!name) return alert('請輸入暱稱');
+        loginSuccess(name, null);
+    }
+
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+        if(tabId === 'cart') renderCart();
+        window.scrollTo(0,0);
+    }
+
+    function renderProducts(list) {
+        const container = document.getElementById('product-list');
+        container.innerHTML = '';
+        if(list.length === 0) return container.innerHTML = '<p style="text-align:center;color:#999;margin-top:30px;">無商品</p>';
+        list.forEach(p => {
+            let tagHtml = p.tag === 'hot' ? '<span class="tag-sale" style="background:#FEE2E2;color:#EF4444;">熱銷</span>' : (p.tag === 'sale' ? '<span class="tag-sale">I珍食</span>' : '');
+            container.innerHTML += `
+                <div class="product-item">
+                    <div class="p-info" onclick="showProductDetailWithId(${p.id})">
+                        <div class="p-name">${p.name}</div>
+                        <div class="p-meta">${tagHtml} <span>${p.class}</span> <span style="font-weight:bold;">$${p.price}</span></div>
+                    </div>
+                    <div class="btn-add" onclick="addToCart(${p.id})">+</div>
+                </div>`;
+        });
+    }
+
+    function filterProducts(cls, btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderProducts(cls === 'all' ? products : products.filter(p => p.class === cls));
+    }
+
+    function showProductDetailWithId(id) {
+        const p = products.find(i => i.id === id);
+        document.getElementById('m-title').innerText = p.name;
+        document.getElementById('m-desc').innerHTML = `班級：${p.class}<br>價格：<span style="color:var(--primary);font-weight:bold;">$${p.price}</span><br><br>${p.desc}`;
+        document.getElementById('m-action').innerHTML = `<button class="btn-main" onclick="addToCart(${p.id}); closeModal()">加入購物車</button>`;
+        document.getElementById('info-modal').style.display = 'flex';
+    }
+
+    function toggleIFood() {
+        const h2 = document.getElementById('pin-h2');
+        if(h2) {
+             // 簡單切換 highlight class
+            if(h2.classList.contains('sale-highlight')) {
+                h2.classList.remove('sale-highlight');
+            } else {
+                alert("已標示「I珍食」特價攤位 (家2乙)");
+                h2.classList.add('sale-highlight');
+            }
+        }
+    }
+
+    let hasPlayed = false;
+    function initLottery() {
+        if(hasPlayed) return alert("已經抽過囉！");
+        document.getElementById('m-title').innerText = "寶箱三選一";
+        document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折</b> 優惠！";
+        document.getElementById('m-action').innerHTML = `
+            <div class="chest-container">
+                <div class="chest" id="chest-0" onclick="playChest(0)">🎁</div>
+                <div class="chest" id="chest-1" onclick="playChest(1)">🎁</div>
+                <div class="chest" id="chest-2" onclick="playChest(2)">🎁</div>
+            </div>
+            <div id="lottery-result" style="height:30px; font-weight:bold; color:var(--danger);"></div>`;
+        document.getElementById('info-modal').style.display = 'flex';
+    }
+
+    function playChest(index) {
+        if(hasPlayed) return;
+        hasPlayed = true;
+        const isWin = Math.random() > 0.4; 
+        for(let i=0; i<3; i++) {
+            const el = document.getElementById(`chest-${i}`);
+            if(i === index) el.innerHTML = isWin ? "🎉<div class='chest-label'>9折</div>" : "💨<div class='chest-label'>沒中</div>";
+            else el.classList.add('disabled');
+        }
+        const resDiv = document.getElementById('lottery-result');
+        if(isWin) { discount = 0.9; resDiv.innerText = "恭喜中獎！結帳自動打 9 折！"; } 
+        else { resDiv.innerText = "可惜沒中..."; resDiv.style.color = "#666"; }
+    }
+
+    function addToCart(id) { cart.push(products.find(p => p.id === id)); updateBadge(); }
+    function updateBadge() { const b = document.getElementById('cart-badge'); b.innerText = cart.length; b.style.display = cart.length>0?'block':'none'; }
+    
+    function renderCart() {
+        const c = document.getElementById('cart-content'), s = document.getElementById('checkout-section');
+        if(cart.length===0) { c.innerHTML='<div style="text-align:center;color:#999;margin-top:20px;">空空如也</div>'; s.style.display='none'; return; }
+        c.innerHTML=''; let total=0;
+        cart.forEach((p,i)=>{ total+=p.price; c.innerHTML+=`<div class="product-item"><div class="p-info"><div class="p-name">${p.name}</div><div class="p-meta">$${p.price}</div></div><div style="color:red;font-weight:bold;cursor:pointer;" onclick="cart.splice(${i},1);renderCart();updateBadge()">✕</div></div>`; });
+        let finalPrice = Math.floor(total * discount);
+        document.getElementById('total-price').innerText = `$${finalPrice}` + (discount < 1 ? " (已折價)" : "");
+        s.style.display='block';
+    }
+
+    function toggleDeliveryLocation() {
+        document.getElementById('location-input-div').style.display = document.getElementById('delivery-check').checked ? 'block' : 'none';
+    }
+
+    function submitOrderWithLine() {
+        const isDelivery = document.getElementById('delivery-check').checked;
+        const location = document.getElementById('delivery-location').value;
+        if(isDelivery && !location) return alert("請輸入外送地點");
+
+        const finalPrice = document.getElementById('total-price').innerText;
+        const userName = document.getElementById('user-display').innerText;
+        
+        let msg = `📋 [新訂單]\n訂購人：${userName}\n------------------\n`;
+        cart.forEach(p => { msg += `▫️ ${p.name} ($${p.price})\n`; });
+        msg += `------------------\n💰 總額：${finalPrice}\n📍 ${isDelivery ? '外送至：'+location : '自取'}`;
+
+        if (liff.isInClient()) {
+            liff.sendMessages([{ type: 'text', text: msg }])
+                .then(() => { alert("已傳送到聊天室！"); resetCart(); })
+                .catch((err) => { console.error(err); alert("傳送失敗"); });
+        } else {
+            alert("已建立！\n\n" + msg);
+            resetCart();
+        }
+    }
+
+    function resetCart() {
+        cart = []; updateBadge(); 
+        document.getElementById('delivery-check').checked = false;
+        document.getElementById('location-input-div').style.display = 'none';
+        switchTab('classes', document.querySelector('.nav-item'));
+    }
+
+    function doSearch(val) { 
+        const resultBox = document.getElementById('search-results');
+        const defaultView = document.getElementById('default-search-view');
+        if(!val) { resultBox.innerHTML = ''; defaultView.style.display = 'block'; return; }
+        defaultView.style.display = 'none';
+        const matches = products.filter(p => p.name.includes(val) || p.class.includes(val));
+        resultBox.innerHTML = '';
+        if(matches.length === 0) return resultBox.innerHTML = '<p style="text-align:center;color:#999">無結果</p>';
+        matches.forEach(p => {
+            resultBox.innerHTML += `<div class="product-item"><div class="p-info" onclick="showProductDetailWithId(${p.id})"><div class="p-name">${p.name}</div><div class="p-meta">${p.class} / $${p.price}</div></div><div class="btn-add" onclick="addToCart(${p.id})">+</div></div>`;
+        });
+    }
+
+    function renderRanking() { 
+        const list = document.getElementById('ranking-list');
+        const sorted = [...products].sort((a,b) => b.sold - a.sold).slice(0, 3);
+        list.innerHTML = '';
+        sorted.forEach((p, i) => list.innerHTML += `<div class="product-item" style="border-left:3px solid var(--primary);"><div class="p-info" onclick="showProductDetailWithId(${p.id})"><div class="p-name">No.${i+1} ${p.name}</div><div class="p-meta">售出 ${p.sold}</div></div><div class="btn-add" onclick="addToCart(${p.id})">+</div></div>`);
+    }
+
+    function closeModal() { document.getElementById('info-modal').style.display = 'none'; }
+</script>
+</body>
+</html>
