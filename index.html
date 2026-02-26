@@ -131,7 +131,7 @@
 
     </style>
 </head>
-<body onload="initLIFF()"> 
+<body> 
 
 <div id="app-container">
 
@@ -171,18 +171,12 @@
         <div class="map-wrapper">
             <img src="map.jpg" alt="園遊會地圖" style="width:100%; display:block;" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
             
-            <div class="pin stage" style="top: 12%; left: 35%;" onclick="alert('司令台：活動表演區')">司令台</div>
-
+            <div class="pin stage" style="top: 12%; left: 35%;" onclick="showInfo('司令台', '活動表演區')">司令台</div>
             <div class="pin stall" id="pin-3y" style="top: 85%; left: 41%;" onclick="showProductDetailWithId(1)">商3乙</div>
-
             <div class="pin stall" id="pin-f3" style="top: 85%; left: 46%;" onclick="showProductDetailWithId(3)">服3乙</div>
-
             <div class="pin stall" id="pin-h2" style="top: 85%; left: 59%;" onclick="showProductDetailWithId(4)">家2乙</div>
-
             <div class="pin stall" id="pin-f2" style="top: 20%; left: 69%;" onclick="showProductDetailWithId(5)">服2甲</div>
-
-            <div class="pin me" style="top: 85%; left: 8%;" onclick="alert('服務台 / 入口處')">服務台</div>
-
+            <div class="pin me" style="top: 85%; left: 8%;" onclick="showInfo('服務台', '服務台 / 入口處')">服務台</div>
         </div>
 
         <div class="map-actions">
@@ -244,7 +238,7 @@
 </div>
 
 <script>
-    // ★★★ 請在此填入您的 LINE LIFF ID ★★★
+    // ★ 保留了你的 LIFF ID ★
     const MY_LIFF_ID ="2008950464-nvPXhIih"; 
 
     // --- 資料 ---
@@ -260,26 +254,51 @@
     let cart = [];
     let discount = 1;
 
-    async function initLIFF() {
-        try {
-            if(MY_LIFF_ID === "在此填入你的LIFF_ID") {
-                document.getElementById('login-msg').innerText = "尚未設定 LIFF ID";
+    // ★★★ 核心急救代碼：改用 DOMContentLoaded 與 Promise 避免安卓當機 ★★★
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // 3秒保險絲
+        let liffInitTimeout = setTimeout(function() {
+            const loginPage = document.getElementById('page-login');
+            if (loginPage && loginPage.style.display !== 'none') {
+                document.getElementById('login-msg').innerText = "連線稍微延遲，您可以直接進入 👇";
+                document.getElementById('login-msg').style.color = "#FF4757";
                 document.getElementById('manual-login').style.display = 'block';
-                return;
+                document.getElementById('btn-line-login').style.display = 'none'; 
             }
-            await liff.init({ liffId: MY_LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                loginSuccess(profile.displayName, profile.pictureUrl);
-            } else {
-                document.getElementById('login-msg').innerText = "請登入";
-                document.getElementById('btn-line-login').style.display = 'block';
-                document.getElementById('manual-login').style.display = 'block';
-            }
-        } catch (err) {
-            document.getElementById('login-msg').innerText = "開發模式";
-            document.getElementById('manual-login').style.display = 'block';
-        }
+        }, 3000);
+
+        liff.init({ liffId: MY_LIFF_ID })
+            .then(function() {
+                clearTimeout(liffInitTimeout); // 成功連上，解除保險絲
+                if (liff.isLoggedIn()) {
+                    return liff.getProfile();
+                } else {
+                    document.getElementById('login-msg').innerText = "請登入";
+                    document.getElementById('btn-line-login').style.display = 'block';
+                    document.getElementById('manual-login').style.display = 'block';
+                    return Promise.reject("未登入"); 
+                }
+            })
+            .then(function(profile) {
+                if(profile) loginSuccess(profile.displayName, profile.pictureUrl);
+            })
+            .catch(function(err) {
+                clearTimeout(liffInitTimeout);
+                if (err !== "未登入") {
+                    document.getElementById('login-msg').innerText = "開發模式 / 連線失敗";
+                    document.getElementById('manual-login').style.display = 'block';
+                }
+            });
+    });
+
+    // ★ 新增：全站共用彈出視窗 (取代 alert) ★
+    function showInfo(title, text) {
+        document.getElementById('m-title').innerText = title;
+        // 把 \n 換成 <br> 以支援換行
+        document.getElementById('m-desc').innerHTML = text.replace(/\n/g, '<br>'); 
+        document.getElementById('m-action').innerHTML = '<button class="btn-main" onclick="closeModal()">知道了</button>';
+        document.getElementById('info-modal').style.display = 'flex';
     }
 
     function loginSuccess(name, avatarUrl) {
@@ -298,7 +317,7 @@
 
     function handleManualLogin() {
         const name = document.getElementById('login-user').value.trim();
-        if (!name) return alert('請輸入暱稱');
+        if (!name) return showInfo('提示', '請輸入暱稱'); // 替換 alert
         loginSuccess(name, null);
     }
 
@@ -345,11 +364,10 @@
     function toggleIFood() {
         const h2 = document.getElementById('pin-h2');
         if(h2) {
-             // 簡單切換 highlight class
             if(h2.classList.contains('sale-highlight')) {
                 h2.classList.remove('sale-highlight');
             } else {
-                alert("已標示「I珍食」特價攤位 (家2乙)");
+                showInfo("提示", "已標示「I珍食」特價攤位 (家2乙)"); // 替換 alert
                 h2.classList.add('sale-highlight');
             }
         }
@@ -357,7 +375,7 @@
 
     let hasPlayed = false;
     function initLottery() {
-        if(hasPlayed) return alert("已經抽過囉！");
+        if(hasPlayed) return showInfo("提示", "已經抽過囉！"); // 替換 alert
         document.getElementById('m-title').innerText = "寶箱三選一";
         document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折</b> 優惠！";
         document.getElementById('m-action').innerHTML = `
@@ -404,7 +422,7 @@
     function submitOrderWithLine() {
         const isDelivery = document.getElementById('delivery-check').checked;
         const location = document.getElementById('delivery-location').value;
-        if(isDelivery && !location) return alert("請輸入外送地點");
+        if(isDelivery && !location) return showInfo("提示", "請輸入外送地點"); // 替換 alert
 
         const finalPrice = document.getElementById('total-price').innerText;
         const userName = document.getElementById('user-display').innerText;
@@ -415,10 +433,10 @@
 
         if (liff.isInClient()) {
             liff.sendMessages([{ type: 'text', text: msg }])
-                .then(() => { alert("已傳送到聊天室！"); resetCart(); })
-                .catch((err) => { console.error(err); alert("傳送失敗"); });
+                .then(() => { showInfo("成功", "已傳送到聊天室！"); resetCart(); }) // 替換 alert
+                .catch((err) => { console.error(err); showInfo("錯誤", "傳送失敗"); }); // 替換 alert
         } else {
-            alert("已建立！\n\n" + msg);
+            showInfo("訂單已建立！", msg); // 替換 alert
             resetCart();
         }
     }
@@ -454,4 +472,3 @@
 </script>
 </body>
 </html>
-
