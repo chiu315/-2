@@ -80,7 +80,7 @@
         .map-wrapper { position: relative; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .map-wrapper img { width: 100%; display: block; }
         
-        /* 標記樣式 */
+        /* 一般地標設定 */
         .pin { 
             position: absolute; transform: translate(-50%, -50%); 
             padding: 4px 8px; border-radius: 12px; 
@@ -89,12 +89,29 @@
             white-space: nowrap; z-index: 10; border: 2px solid white;
         }
         .pin:active { transform: translate(-50%, -50%) scale(0.9); }
-        .pin.stall { background: var(--primary); }
-        .pin.sale-highlight { background: var(--danger); animation: pulse 1s infinite; z-index: 12; }
         .pin.me { background: #2ecc71; color: white; z-index: 5; }
         .pin.stage { background: #3498db; z-index: 5; }
         
-        @keyframes pulse { 0% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.2); } 100% { transform: translate(-50%,-50%) scale(1); } }
+        /* ★ 新增：時事紅點樣式 ★ */
+        .pin.red-dot {
+            width: 18px; height: 18px;
+            background-color: var(--danger);
+            border-radius: 50%;
+            padding: 0;
+            border: 2px solid white;
+            color: transparent; /* 隱藏裡面的文字 */
+            overflow: hidden;
+            animation: radarPulse 1.5s infinite; /* 呼叫呼吸燈動畫 */
+            box-shadow: 0 0 0 rgba(255, 71, 87, 0.7);
+        }
+        
+        /* ★ 新增：雷達向外擴散的呼吸燈動畫 ★ */
+        @keyframes radarPulse {
+            0% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+            70% { transform: translate(-50%,-50%) scale(1); box-shadow: 0 0 0 12px rgba(255, 71, 87, 0); }
+            100% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+        }
+
         .map-actions { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
 
         /* --- 7. 購物車與其他 --- */
@@ -172,15 +189,17 @@
             <img src="map.jpg" alt="園遊會地圖" style="width:100%; display:block;" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
             
             <div class="pin stage" style="top: 12%; left: 35%;" onclick="showInfo('司令台', '活動表演區')">司令台</div>
-            <div class="pin stall" id="pin-3y" style="top: 85%; left: 41%;" onclick="showProductDetailWithId(1)">商3乙</div>
-            <div class="pin stall" id="pin-f3" style="top: 85%; left: 46%;" onclick="showProductDetailWithId(3)">服3乙</div>
-            <div class="pin stall" id="pin-h2" style="top: 85%; left: 59%;" onclick="showProductDetailWithId(4)">家2乙</div>
-            <div class="pin stall" id="pin-f2" style="top: 20%; left: 69%;" onclick="showProductDetailWithId(5)">服2甲</div>
+            
+            <div class="pin red-dot" id="pin-3y" style="top: 85%; left: 41%;" onclick="showClassInfo('商三乙')">商三乙</div>
+            <div class="pin red-dot" id="pin-f3" style="top: 85%; left: 46%;" onclick="showClassInfo('服三乙')">服三乙</div>
+            <div class="pin red-dot" id="pin-h2" style="top: 85%; left: 59%;" onclick="showClassInfo('家二乙')">家二乙</div>
+            <div class="pin red-dot" id="pin-f2" style="top: 20%; left: 69%;" onclick="showClassInfo('服二甲')">服二甲</div>
+            
             <div class="pin me" style="top: 85%; left: 8%;" onclick="showInfo('服務台', '服務台 / 入口處')">服務台</div>
         </div>
 
         <div class="map-actions">
-            <button class="btn-main" style="width: auto; background: #F59E0B;" onclick="toggleIFood()">👁️ I珍食特價</button>
+            <button class="btn-main" style="width: auto; background: #F59E0B;" onclick="showInfo('👁️ 尋找 I珍食', '點擊地圖上的紅點，\n即可查看該班級是否有 I珍食特價品！')">👁️ 找 I珍食</button>
             <button class="btn-main" style="width: auto; background: #8B5CF6;" onclick="initLottery()">🎰 寶箱抽獎</button>
         </div>
     </div>
@@ -229,8 +248,8 @@
     <div class="modal-overlay" id="info-modal" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closeModal()">&times;</span>
-            <h3 id="m-title"></h3>
-            <p id="m-desc" style="color: #666; line-height: 1.6; margin: 15px 0;"></p>
+            <h3 id="m-title" style="margin-top: 5px;"></h3>
+            <div id="m-desc" style="color: #666; line-height: 1.6; margin: 15px 0;"></div>
             <div id="m-action"></div>
         </div>
     </div>
@@ -238,7 +257,6 @@
 </div>
 
 <script>
-    // ★ 保留了你的 LIFF ID ★
     const MY_LIFF_ID ="2008950464-nvPXhIih"; 
 
     // --- 資料 ---
@@ -254,10 +272,7 @@
     let cart = [];
     let discount = 1;
 
-    // ★★★ 核心急救代碼：改用 DOMContentLoaded 與 Promise 避免安卓當機 ★★★
     document.addEventListener("DOMContentLoaded", function() {
-        
-        // 3秒保險絲
         let liffInitTimeout = setTimeout(function() {
             const loginPage = document.getElementById('page-login');
             if (loginPage && loginPage.style.display !== 'none') {
@@ -270,7 +285,7 @@
 
         liff.init({ liffId: MY_LIFF_ID })
             .then(function() {
-                clearTimeout(liffInitTimeout); // 成功連上，解除保險絲
+                clearTimeout(liffInitTimeout); 
                 if (liff.isLoggedIn()) {
                     return liff.getProfile();
                 } else {
@@ -292,12 +307,42 @@
             });
     });
 
-    // ★ 新增：全站共用彈出視窗 (取代 alert) ★
     function showInfo(title, text) {
         document.getElementById('m-title').innerText = title;
-        // 把 \n 換成 <br> 以支援換行
         document.getElementById('m-desc').innerHTML = text.replace(/\n/g, '<br>'); 
         document.getElementById('m-action').innerHTML = '<button class="btn-main" onclick="closeModal()">知道了</button>';
+        document.getElementById('info-modal').style.display = 'flex';
+    }
+
+    // ★ 新增：點擊地圖紅點，顯示該班級的所有商品 (並標示 I珍食) ★
+    function showClassInfo(className) {
+        // 篩選出這個班級的所有商品
+        const classProducts = products.filter(p => p.class === className);
+        
+        let html = `<div style="text-align:left; max-height: 50vh; overflow-y: auto; margin-top: 5px;">`;
+        
+        classProducts.forEach(p => {
+            let isSale = p.tag === 'sale';
+            // 如果是 i珍食，給予橘色的高亮標籤
+            let tagHtml = isSale ? `<span style="background:#FFEDD5; color:#C2410C; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 5px; display:inline-block; font-weight:bold;">🔥 I珍食特價</span><br>` : '';
+            
+            html += `
+                <div style="background: #F9FAFB; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="flex:1;">
+                        ${tagHtml}
+                        <div style="font-weight:bold; font-size: 1rem; color: #333; margin-bottom: 4px;">${p.name}</div>
+                        <div style="font-size: 0.85rem; color: #666;">$${p.price}</div>
+                    </div>
+                    <div class="btn-add" onclick="addToCart(${p.id}); showInfo('加入成功', '🛒 已將 ${p.name} 加入購物車！')" style="margin-left: 10px; background: var(--primary); color: white;">+</div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+
+        document.getElementById('m-title').innerText = `📍 ${className}`;
+        document.getElementById('m-desc').innerHTML = html;
+        document.getElementById('m-action').innerHTML = '<button class="btn-main" style="background:#ddd; color:#333;" onclick="closeModal()">關閉視窗</button>';
         document.getElementById('info-modal').style.display = 'flex';
     }
 
@@ -317,7 +362,7 @@
 
     function handleManualLogin() {
         const name = document.getElementById('login-user').value.trim();
-        if (!name) return showInfo('提示', '請輸入暱稱'); // 替換 alert
+        if (!name) return showInfo('提示', '請輸入暱稱'); 
         loginSuccess(name, null);
     }
 
@@ -361,21 +406,9 @@
         document.getElementById('info-modal').style.display = 'flex';
     }
 
-    function toggleIFood() {
-        const h2 = document.getElementById('pin-h2');
-        if(h2) {
-            if(h2.classList.contains('sale-highlight')) {
-                h2.classList.remove('sale-highlight');
-            } else {
-                showInfo("提示", "已標示「I珍食」特價攤位 (家2乙)"); // 替換 alert
-                h2.classList.add('sale-highlight');
-            }
-        }
-    }
-
     let hasPlayed = false;
     function initLottery() {
-        if(hasPlayed) return showInfo("提示", "已經抽過囉！"); // 替換 alert
+        if(hasPlayed) return showInfo("提示", "已經抽過囉！"); 
         document.getElementById('m-title').innerText = "寶箱三選一";
         document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折</b> 優惠！";
         document.getElementById('m-action').innerHTML = `
@@ -422,7 +455,7 @@
     function submitOrderWithLine() {
         const isDelivery = document.getElementById('delivery-check').checked;
         const location = document.getElementById('delivery-location').value;
-        if(isDelivery && !location) return showInfo("提示", "請輸入外送地點"); // 替換 alert
+        if(isDelivery && !location) return showInfo("提示", "請輸入外送地點"); 
 
         const finalPrice = document.getElementById('total-price').innerText;
         const userName = document.getElementById('user-display').innerText;
@@ -433,10 +466,10 @@
 
         if (liff.isInClient()) {
             liff.sendMessages([{ type: 'text', text: msg }])
-                .then(() => { showInfo("成功", "已傳送到聊天室！"); resetCart(); }) // 替換 alert
-                .catch((err) => { console.error(err); showInfo("錯誤", "傳送失敗"); }); // 替換 alert
+                .then(() => { showInfo("成功", "已傳送到聊天室！"); resetCart(); }) 
+                .catch((err) => { console.error(err); showInfo("錯誤", "傳送失敗"); }); 
         } else {
-            showInfo("訂單已建立！", msg); // 替換 alert
+            showInfo("訂單已建立！", msg); 
             resetCart();
         }
     }
