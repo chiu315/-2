@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>園遊會全功能導覽</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <style>
         /* --- 1. 全域設定 --- */
         :root {
@@ -77,8 +78,28 @@
         .btn-add { width: 35px; height: 35px; background: var(--primary-light); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; margin-left: 10px; flex-shrink: 0; }
 
         /* --- 6. 地圖設定 (重要) --- */
-        .map-wrapper { position: relative; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .map-wrapper img { width: 100%; display: block; }
+        /* ★ 修改：讓地圖區塊變成一個固定高度的「視窗」，並隱藏超出的部分 ★ */
+        .map-wrapper { 
+            position: relative; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            background: #E5E7EB; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            height: 55vh; /* 設定地圖區塊高度 */
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            touch-action: none; /* 防止滑動地圖時觸發網頁原生捲動 */
+            cursor: grab;
+        }
+        .map-wrapper:active { cursor: grabbing; }
+        
+        /* ★ 新增：內部實際被縮放的容器 ★ */
+        #map-content {
+            width: 100%;
+            position: relative;
+        }
+        #map-content img { width: 100%; display: block; pointer-events: none; /* 避免圖片拖曳干擾 */ }
         
         /* 一般地標設定 */
         .pin { 
@@ -99,31 +120,29 @@
             border-radius: 50%;
             padding: 0;
             border: 2px solid white;
-            color: transparent; /* 隱藏裡面的文字 */
+            color: transparent; 
             overflow: hidden;
-            animation: radarPulse 1.5s infinite; /* 呼叫呼吸燈動畫 */
+            animation: radarPulse 1.5s infinite; 
             box-shadow: 0 0 0 rgba(255, 71, 87, 0.7);
             transition: all 0.3s ease;
         }
         
-        /* 雷達向外擴散的呼吸燈動畫 */
         @keyframes radarPulse {
             0% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
             70% { transform: translate(-50%,-50%) scale(1); box-shadow: 0 0 0 12px rgba(255, 71, 87, 0); }
             100% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
         }
 
-        /* ★ 新增：I珍食雷達模式的樣式 ★ */
         .pin.red-dot.dimmed {
-            opacity: 0.15; /* 暗化沒有特價的班級 */
-            animation: none; /* 停止呼吸 */
-            pointer-events: none; /* 暫時不能點擊 */
+            opacity: 0.15; 
+            animation: none; 
+            pointer-events: none; 
             border-color: rgba(255,255,255,0.3);
         }
         
         .pin.red-dot.ijen-active {
-            background-color: #F59E0B; /* 變成亮橘色 */
-            animation: radarPulseIjen 1.2s infinite; /* 加快呼吸頻率 */
+            background-color: #F59E0B; 
+            animation: radarPulseIjen 1.2s infinite; 
         }
         
         @keyframes radarPulseIjen {
@@ -205,17 +224,24 @@
     </div>
 
     <div id="tab-map" class="page">
-        <div class="map-wrapper">
-            <img src="map.jpg" alt="園遊會地圖" style="width:100%; display:block;" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
-            
-            <div class="pin stage" style="top: 12%; left: 35%;" onclick="showInfo('司令台', '活動表演區')">司令台</div>
-            
-            <div class="pin red-dot" id="pin-3y" style="top: 85%; left: 41%;" onclick="showClassInfo('商三乙')">商三乙</div>
-            <div class="pin red-dot" id="pin-f3" style="top: 85%; left: 46%;" onclick="showClassInfo('服三乙')">服三乙</div>
-            <div class="pin red-dot" id="pin-h2" style="top: 85%; left: 59%;" onclick="showClassInfo('家二乙')">家二乙</div>
-            <div class="pin red-dot" id="pin-f2" style="top: 20%; left: 69%;" onclick="showClassInfo('服二甲')">服二甲</div>
-            
-            <div class="pin me" style="top: 85%; left: 8%;" onclick="showInfo('服務台', '服務台 / 入口處')">服務台</div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px;">
+            <button class="cat-btn" id="btn-zoom-in" style="font-size: 0.8rem; padding: 4px 10px;">➕ 放大</button>
+            <button class="cat-btn" id="btn-zoom-out" style="font-size: 0.8rem; padding: 4px 10px;">➖ 縮小</button>
+            <button class="cat-btn" id="btn-zoom-reset" style="font-size: 0.8rem; padding: 4px 10px;">🔄 歸位</button>
+        </div>
+
+        <div class="map-wrapper" id="map-viewport">
+            <div id="map-content">
+                <img src="map.jpg" alt="園遊會地圖" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
+                
+                <div class="pin stage" style="top: 12%; left: 35%;" onclick="showInfo('司令台', '活動表演區')">司令台</div>
+                <div class="pin red-dot" id="pin-3y" style="top: 85%; left: 41%;" onclick="showClassInfo('商三乙')">商三乙</div>
+                <div class="pin red-dot" id="pin-f3" style="top: 85%; left: 46%;" onclick="showClassInfo('服三乙')">服三乙</div>
+                <div class="pin red-dot" id="pin-h2" style="top: 85%; left: 59%;" onclick="showClassInfo('家二乙')">家二乙</div>
+                <div class="pin red-dot" id="pin-f2" style="top: 20%; left: 69%;" onclick="showClassInfo('服二甲')">服二甲</div>
+                
+                <div class="pin me" style="top: 85%; left: 8%;" onclick="showInfo('服務台', '服務台 / 入口處')">服務台</div>
+            </div>
         </div>
 
         <div class="map-actions">
@@ -279,7 +305,6 @@
 <script>
     const MY_LIFF_ID ="2008950464-nvPXhIih"; 
 
-    // --- 資料 ---
     const products = [
         { id: 1, class: '商三乙', name: '特調珍珠奶茶', price: 50, tag: 'hot', desc: '每日現煮珍珠，本班招牌！', sold: 120 },
         { id: 2, class: '商三乙', name: '大腸包小腸', price: 60, tag: '', desc: '正宗台式口味，蒜頭加爆。', sold: 85 },
@@ -291,8 +316,29 @@
 
     let cart = [];
     let discount = 1;
+    let panzoomInstance = null; // 宣告地圖縮放實例
 
     document.addEventListener("DOMContentLoaded", function() {
+        // ★ 新增：初始化 Panzoom 地圖縮放 ★
+        const mapContent = document.getElementById('map-content');
+        panzoomInstance = Panzoom(mapContent, {
+            maxScale: 4,        // 最大放大 4 倍
+            minScale: 1,        // 最小縮小到原本大小
+            step: 0.3,          // 每次縮放的級距
+            cursor: 'grab'
+        });
+
+        // 綁定：滑鼠滾輪縮放
+        const mapViewport = document.getElementById('map-viewport');
+        mapViewport.addEventListener('wheel', panzoomInstance.zoomWithWheel);
+
+        // 綁定：縮放按鈕
+        document.getElementById('btn-zoom-in').addEventListener('click', panzoomInstance.zoomIn);
+        document.getElementById('btn-zoom-out').addEventListener('click', panzoomInstance.zoomOut);
+        document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+            panzoomInstance.reset();
+        });
+
         let liffInitTimeout = setTimeout(function() {
             const loginPage = document.getElementById('page-login');
             if (loginPage && loginPage.style.display !== 'none') {
@@ -335,14 +381,11 @@
     }
 
     function showClassInfo(className) {
-        // 篩選出這個班級的所有商品
         const classProducts = products.filter(p => p.class === className);
-        
         let html = `<div style="text-align:left; max-height: 50vh; overflow-y: auto; margin-top: 5px;">`;
         
         classProducts.forEach(p => {
             let isSale = p.tag === 'sale';
-            // 如果是 i珍食，給予橘色的高亮標籤
             let tagHtml = isSale ? `<span style="background:#FFEDD5; color:#C2410C; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 5px; display:inline-block; font-weight:bold;">🔥 I珍食特價</span><br>` : '';
             
             html += `
@@ -365,39 +408,30 @@
         document.getElementById('info-modal').style.display = 'flex';
     }
 
-    // ★ 新增：I珍食雷達切換邏輯 ★
     let isShowingIJen = false;
-
     function toggleIJenShih() {
         isShowingIJen = !isShowingIJen;
         const btn = document.getElementById('btn-ijen');
         const allRedDots = document.querySelectorAll('.pin.red-dot');
 
         if (isShowingIJen) {
-            // 開啟雷達：按鈕變色提示
             btn.innerHTML = "❌ 關閉雷達";
             btn.style.background = "#E11D48"; 
-
-            // 找出所有含有 'sale' (I珍食) 標籤的班級名稱
             const saleClasses = [...new Set(products.filter(p => p.tag === 'sale').map(p => p.class))];
 
             allRedDots.forEach(pin => {
-                const className = pin.textContent.trim(); // 抓取標點裡的班級名稱
+                const className = pin.textContent.trim(); 
                 if (saleClasses.includes(className)) {
-                    // 有 I珍食的班級 -> 套用橘色強光動畫
                     pin.classList.remove('dimmed');
                     pin.classList.add('ijen-active');
                 } else {
-                    // 沒有 I珍食的班級 -> 暗化並停止動畫
                     pin.classList.add('dimmed');
                     pin.classList.remove('ijen-active');
                 }
             });
         } else {
-            // 關閉雷達：恢復原本的紅色呼吸燈
             btn.innerHTML = "👁️ 找 I珍食";
             btn.style.background = "#F59E0B";
-            
             allRedDots.forEach(pin => {
                 pin.classList.remove('dimmed', 'ijen-active');
             });
@@ -429,6 +463,12 @@
         document.getElementById('tab-' + tabId).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         el.classList.add('active');
+        
+        // ★ 修復：切換到地圖時重新對齊一次 ★
+        if(tabId === 'map' && panzoomInstance) {
+            setTimeout(() => { panzoomInstance.reset(); }, 50);
+        }
+        
         if(tabId === 'cart') renderCart();
         window.scrollTo(0,0);
     }
