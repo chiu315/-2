@@ -230,6 +230,13 @@
         <h3 style="margin-top: 0;">我的購物車</h3>
         <div id="cart-content"></div>
         <div id="checkout-section" class="checkout-box" style="display:none;">
+            
+            <div id="coupon-section" style="margin-bottom: 15px; display: none;">
+                <div style="font-weight: bold; margin-bottom: 5px; color: var(--danger);">🎟️ 可用優惠券</div>
+                <select id="coupon-select" class="search-bar" style="background: white; border: 1px solid var(--danger); font-weight: bold;" onchange="handleCouponChange()">
+                    </select>
+            </div>
+
             <div style="display:flex; justify-content:space-between; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;">
                 <span>總金額</span>
                 <span id="total-price" style="color: var(--primary);">$0</span>
@@ -275,9 +282,10 @@
         { id: 6, class: '商三乙', name: '脆皮雞排', price: 70, tag: 'hot', desc: '現炸多汁，外酥內嫩。', sold: 300 }
     ];
 
-    // ★ 修改：購物車資料結構變更，支援數量統計 ★
     let cart = []; 
-    let discount = 1;
+    // ★ 新增：優惠券陣列與選取狀態 ★
+    let myCoupons = []; 
+    let selectedCouponId = -1; // -1 代表不使用
     let panzoomInstance = null; 
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -337,11 +345,9 @@
     function showClassInfo(className) {
         const classProducts = products.filter(p => p.class === className);
         let html = `<div style="text-align:left; max-height: 50vh; overflow-y: auto; margin-top: 5px;">`;
-        
         classProducts.forEach(p => {
             let isSale = p.tag === 'sale';
             let tagHtml = isSale ? `<span style="background:#FFEDD5; color:#C2410C; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 5px; display:inline-block; font-weight:bold;">🔥 I珍食特價</span><br>` : '';
-            
             html += `
                 <div style="background: #F9FAFB; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                     <div style="flex:1;">
@@ -353,9 +359,7 @@
                 </div>
             `;
         });
-        
         html += `</div>`;
-
         document.getElementById('m-title').innerText = `📍 ${className}`;
         document.getElementById('m-desc').innerHTML = html;
         document.getElementById('m-action').innerHTML = '<button class="btn-main" style="background:#ddd; color:#333;" onclick="closeModal()">關閉視窗</button>';
@@ -367,28 +371,22 @@
         isShowingIJen = !isShowingIJen;
         const btn = document.getElementById('btn-ijen');
         const allRedDots = document.querySelectorAll('.pin.red-dot');
-
         if (isShowingIJen) {
             btn.innerHTML = "❌ 關閉雷達";
             btn.style.background = "#E11D48"; 
             const saleClasses = [...new Set(products.filter(p => p.tag === 'sale').map(p => p.class))];
-
             allRedDots.forEach(pin => {
                 const className = pin.textContent.trim(); 
                 if (saleClasses.includes(className)) {
-                    pin.classList.remove('dimmed');
-                    pin.classList.add('ijen-active');
+                    pin.classList.remove('dimmed'); pin.classList.add('ijen-active');
                 } else {
-                    pin.classList.add('dimmed');
-                    pin.classList.remove('ijen-active');
+                    pin.classList.add('dimmed'); pin.classList.remove('ijen-active');
                 }
             });
         } else {
             btn.innerHTML = "👁️ 找 I珍食";
             btn.style.background = "#F59E0B";
-            allRedDots.forEach(pin => {
-                pin.classList.remove('dimmed', 'ijen-active');
-            });
+            allRedDots.forEach(pin => { pin.classList.remove('dimmed', 'ijen-active'); });
         }
     }
 
@@ -417,11 +415,7 @@
         document.getElementById('tab-' + tabId).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         el.classList.add('active');
-        
-        if(tabId === 'map' && panzoomInstance) {
-            setTimeout(() => { panzoomInstance.reset(); }, 50);
-        }
-        
+        if(tabId === 'map' && panzoomInstance) { setTimeout(() => { panzoomInstance.reset(); }, 50); }
         if(tabId === 'cart') renderCart();
         window.scrollTo(0,0);
     }
@@ -457,11 +451,12 @@
         document.getElementById('info-modal').style.display = 'flex';
     }
 
+    // ★ 修改：抽獎邏輯改成把優惠券塞到背包 (myCoupons) 裡 ★
     let hasPlayed = false;
     function initLottery() {
         if(hasPlayed) return showInfo("提示", "已經抽過囉！"); 
         document.getElementById('m-title').innerText = "寶箱三選一";
-        document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折</b> 優惠！";
+        document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折券</b>！";
         document.getElementById('m-action').innerHTML = `
             <div class="chest-container">
                 <div class="chest" id="chest-0" onclick="playChest(0)">🎁</div>
@@ -478,26 +473,26 @@
         const isWin = Math.random() > 0.4; 
         for(let i=0; i<3; i++) {
             const el = document.getElementById(`chest-${i}`);
-            if(i === index) el.innerHTML = isWin ? "🎉<div class='chest-label'>9折</div>" : "💨<div class='chest-label'>沒中</div>";
+            if(i === index) el.innerHTML = isWin ? "🎉<div class='chest-label'>9折券</div>" : "💨<div class='chest-label'>沒中</div>";
             else el.classList.add('disabled');
         }
         const resDiv = document.getElementById('lottery-result');
-        if(isWin) { discount = 0.9; resDiv.innerText = "恭喜中獎！結帳自動打 9 折！"; } 
-        else { resDiv.innerText = "可惜沒中..."; resDiv.style.color = "#666"; }
+        if(isWin) { 
+            // 把優惠券存入陣列
+            myCoupons.push({ id: Date.now(), name: "幸運寶箱 9 折券", discount: 0.9, used: false });
+            resDiv.innerText = "恭喜中獎！獲得「9折券」，結帳時可使用！"; 
+        } else { 
+            resDiv.innerText = "可惜沒中..."; resDiv.style.color = "#666"; 
+        }
     }
 
-    // ★ 修改：加入購物車時，判斷是否已存在，若是則數量+1 ★
     function addToCart(id) { 
         let existingItem = cart.find(item => item.product.id === id);
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cart.push({ product: products.find(p => p.id === id), quantity: 1 });
-        }
+        if (existingItem) { existingItem.quantity += 1; } 
+        else { cart.push({ product: products.find(p => p.id === id), quantity: 1 }); }
         updateBadge(); 
     }
 
-    // ★ 修改：紅點數字顯示目前的「總物品數量」 ★
     function updateBadge() { 
         const b = document.getElementById('cart-badge'); 
         let totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -505,17 +500,19 @@
         b.style.display = totalQty > 0 ? 'block' : 'none'; 
     }
     
-    // ★ 新增：調整購物車數量的按鈕功能 ★
     function changeQuantity(index, delta) {
         cart[index].quantity += delta;
-        if(cart[index].quantity <= 0) {
-            cart.splice(index, 1); // 數量 <= 0 時直接移除該商品
-        }
-        renderCart();
-        updateBadge();
+        if(cart[index].quantity <= 0) { cart.splice(index, 1); }
+        renderCart(); updateBadge();
     }
 
-    // ★ 修改：購物車渲染改為「名稱 x 數量」以及 ➕ ➖ 按鈕 ★
+    // ★ 新增：處理優惠券選擇的動作 ★
+    function handleCouponChange() {
+        selectedCouponId = parseInt(document.getElementById('coupon-select').value);
+        renderCart();
+    }
+
+    // ★ 修改：結帳頁面渲染，加入優惠券選擇與金額計算 ★
     function renderCart() {
         const c = document.getElementById('cart-content'), s = document.getElementById('checkout-section');
         if(cart.length === 0) { c.innerHTML='<div style="text-align:center;color:#999;margin-top:40px;">購物車空空如也</div>'; s.style.display='none'; return; }
@@ -542,8 +539,33 @@
             </div>`; 
         });
         
-        let finalPrice = Math.floor(total * discount);
-        document.getElementById('total-price').innerText = `$${finalPrice}` + (discount < 1 ? " (已折價)" : "");
+        // 處理優惠券選單顯示
+        const couponSec = document.getElementById('coupon-section');
+        const couponSel = document.getElementById('coupon-select');
+        const validCoupons = myCoupons.filter(coupon => !coupon.used);
+
+        if (validCoupons.length > 0) {
+            couponSec.style.display = 'block';
+            let optionsHtml = `<option value="-1">不使用優惠券</option>`;
+            validCoupons.forEach(coupon => {
+                let isSelected = (coupon.id === selectedCouponId) ? 'selected' : '';
+                optionsHtml += `<option value="${coupon.id}" ${isSelected}>${coupon.name}</option>`;
+            });
+            couponSel.innerHTML = optionsHtml;
+        } else {
+            couponSec.style.display = 'none';
+            selectedCouponId = -1; // 沒券可用強制歸零
+        }
+
+        // 計算折價後的總計
+        let activeDiscount = 1;
+        if (selectedCouponId !== -1) {
+            let activeCoupon = myCoupons.find(c => c.id === selectedCouponId);
+            if (activeCoupon) activeDiscount = activeCoupon.discount;
+        }
+
+        let finalPrice = Math.floor(total * activeDiscount);
+        document.getElementById('total-price').innerText = `$${finalPrice}` + (activeDiscount < 1 ? " (已折價)" : "");
         s.style.display = 'block';
     }
 
@@ -551,7 +573,7 @@
         document.getElementById('location-input-div').style.display = document.getElementById('delivery-check').checked ? 'block' : 'none';
     }
 
-    // ★ 修改：傳送給老闆的 LINE 訊息也同步顯示數量 ★
+    // ★ 修改：傳單時寫入優惠券使用紀錄，並將優惠券標為已使用 ★
     function submitOrderWithLine() {
         const isDelivery = document.getElementById('delivery-check').checked;
         const location = document.getElementById('delivery-location').value;
@@ -564,6 +586,16 @@
         cart.forEach(item => { 
             msg += `▫️ ${item.product.name} x${item.quantity} ($${item.product.price * item.quantity})\n`; 
         });
+
+        // 檢查是否有套用優惠券
+        if (selectedCouponId !== -1) {
+            let usedCoupon = myCoupons.find(c => c.id === selectedCouponId);
+            if (usedCoupon) {
+                msg += `🎟️ 使用優惠：${usedCoupon.name}\n`;
+                usedCoupon.used = true; // 核銷優惠券！
+            }
+        }
+
         msg += `------------------\n💰 總額：${finalPrice}\n📍 ${isDelivery ? '外送至：'+location : '自取'}`;
 
         if (liff.isInClient()) {
@@ -580,6 +612,7 @@
         cart = []; updateBadge(); 
         document.getElementById('delivery-check').checked = false;
         document.getElementById('location-input-div').style.display = 'none';
+        selectedCouponId = -1; // 購物車清空後，優惠券選擇重置
         switchTab('classes', document.querySelector('.nav-item'));
     }
 
