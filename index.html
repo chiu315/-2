@@ -232,7 +232,7 @@
         <div id="checkout-section" class="checkout-box" style="display:none;">
             
             <div id="coupon-section" style="margin-bottom: 15px; display: none;">
-                <div style="font-weight: bold; margin-bottom: 5px; color: var(--danger);">🎟️ 可用優惠券</div>
+                <div style="font-weight: bold; margin-bottom: 5px; color: var(--danger);">🎟️ 可用優惠券 (單筆限用一張)</div>
                 <select id="coupon-select" class="search-bar" style="background: white; border: 1px solid var(--danger); font-weight: bold;" onchange="handleCouponChange()">
                     </select>
             </div>
@@ -283,9 +283,9 @@
     ];
 
     let cart = []; 
-    // ★ 新增：優惠券陣列與選取狀態 ★
-    let myCoupons = []; 
-    let selectedCouponId = -1; // -1 代表不使用
+    // ★ 修改：從瀏覽器 localStorage 載入儲存的優惠券，若沒有則給空陣列 ★
+    let myCoupons = JSON.parse(localStorage.getItem('myCoupons')) || []; 
+    let selectedCouponId = -1; 
     let panzoomInstance = null; 
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -451,10 +451,9 @@
         document.getElementById('info-modal').style.display = 'flex';
     }
 
-    // ★ 修改：抽獎邏輯改成把優惠券塞到背包 (myCoupons) 裡 ★
     let hasPlayed = false;
     function initLottery() {
-        if(hasPlayed) return showInfo("提示", "已經抽過囉！"); 
+        if(hasPlayed) return showInfo("提示", "您這次登入已經抽過寶箱囉！可以去購物車看看您的優惠券。"); 
         document.getElementById('m-title').innerText = "寶箱三選一";
         document.getElementById('m-desc').innerHTML = "選一個寶箱，有機會獲得 <b>9折券</b>！";
         document.getElementById('m-action').innerHTML = `
@@ -478,9 +477,11 @@
         }
         const resDiv = document.getElementById('lottery-result');
         if(isWin) { 
-            // 把優惠券存入陣列
+            // ★ 修改：新增優惠券，並寫入 localStorage ★
             myCoupons.push({ id: Date.now(), name: "幸運寶箱 9 折券", discount: 0.9, used: false });
-            resDiv.innerText = "恭喜中獎！獲得「9折券」，結帳時可使用！"; 
+            localStorage.setItem('myCoupons', JSON.stringify(myCoupons)); 
+            
+            resDiv.innerText = "恭喜中獎！已將優惠券存入您的帳號，結帳時可使用！"; 
         } else { 
             resDiv.innerText = "可惜沒中..."; resDiv.style.color = "#666"; 
         }
@@ -506,13 +507,11 @@
         renderCart(); updateBadge();
     }
 
-    // ★ 新增：處理優惠券選擇的動作 ★
     function handleCouponChange() {
         selectedCouponId = parseInt(document.getElementById('coupon-select').value);
         renderCart();
     }
 
-    // ★ 修改：結帳頁面渲染，加入優惠券選擇與金額計算 ★
     function renderCart() {
         const c = document.getElementById('cart-content'), s = document.getElementById('checkout-section');
         if(cart.length === 0) { c.innerHTML='<div style="text-align:center;color:#999;margin-top:40px;">購物車空空如也</div>'; s.style.display='none'; return; }
@@ -539,7 +538,7 @@
             </div>`; 
         });
         
-        // 處理優惠券選單顯示
+        // 讀取尚未被核銷的優惠券
         const couponSec = document.getElementById('coupon-section');
         const couponSel = document.getElementById('coupon-select');
         const validCoupons = myCoupons.filter(coupon => !coupon.used);
@@ -554,10 +553,9 @@
             couponSel.innerHTML = optionsHtml;
         } else {
             couponSec.style.display = 'none';
-            selectedCouponId = -1; // 沒券可用強制歸零
+            selectedCouponId = -1; 
         }
 
-        // 計算折價後的總計
         let activeDiscount = 1;
         if (selectedCouponId !== -1) {
             let activeCoupon = myCoupons.find(c => c.id === selectedCouponId);
@@ -573,7 +571,6 @@
         document.getElementById('location-input-div').style.display = document.getElementById('delivery-check').checked ? 'block' : 'none';
     }
 
-    // ★ 修改：傳單時寫入優惠券使用紀錄，並將優惠券標為已使用 ★
     function submitOrderWithLine() {
         const isDelivery = document.getElementById('delivery-check').checked;
         const location = document.getElementById('delivery-location').value;
@@ -587,12 +584,13 @@
             msg += `▫️ ${item.product.name} x${item.quantity} ($${item.product.price * item.quantity})\n`; 
         });
 
-        // 檢查是否有套用優惠券
+        // ★ 修改：如果有使用優惠券，標記為已使用並更新 localStorage ★
         if (selectedCouponId !== -1) {
             let usedCoupon = myCoupons.find(c => c.id === selectedCouponId);
             if (usedCoupon) {
                 msg += `🎟️ 使用優惠：${usedCoupon.name}\n`;
-                usedCoupon.used = true; // 核銷優惠券！
+                usedCoupon.used = true; 
+                localStorage.setItem('myCoupons', JSON.stringify(myCoupons)); // 更新狀態到手機記憶體中
             }
         }
 
@@ -612,7 +610,7 @@
         cart = []; updateBadge(); 
         document.getElementById('delivery-check').checked = false;
         document.getElementById('location-input-div').style.display = 'none';
-        selectedCouponId = -1; // 購物車清空後，優惠券選擇重置
+        selectedCouponId = -1; 
         switchTab('classes', document.querySelector('.nav-item'));
     }
 
