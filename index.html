@@ -77,54 +77,29 @@
         .tag-sale { background: #FFEDD5; color: #C2410C; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
         .btn-add { width: 35px; height: 35px; background: var(--primary-light); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; margin-left: 10px; flex-shrink: 0; }
 
-        /* --- 6. 地圖設定 (重要) --- */
-        /* ★ 修改：讓地圖區塊變成一個固定高度的「視窗」，並隱藏超出的部分 ★ */
+        /* --- 6. 地圖設定 --- */
         .map-wrapper { 
-            position: relative; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            background: #E5E7EB; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
-            height: 55vh; /* 設定地圖區塊高度 */
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            touch-action: none; /* 防止滑動地圖時觸發網頁原生捲動 */
-            cursor: grab;
+            position: relative; border-radius: 12px; overflow: hidden; background: #E5E7EB; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); height: 55vh; display: flex; 
+            align-items: center; justify-content: center; touch-action: none; cursor: grab;
         }
         .map-wrapper:active { cursor: grabbing; }
+        #map-content { width: 100%; position: relative; }
+        #map-content img { width: 100%; display: block; pointer-events: none; }
         
-        /* ★ 新增：內部實際被縮放的容器 ★ */
-        #map-content {
-            width: 100%;
-            position: relative;
-        }
-        #map-content img { width: 100%; display: block; pointer-events: none; /* 避免圖片拖曳干擾 */ }
-        
-        /* 一般地標設定 */
         .pin { 
-            position: absolute; transform: translate(-50%, -50%); 
-            padding: 4px 8px; border-radius: 12px; 
-            font-size: 0.75rem; font-weight: bold; color: white; 
-            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            position: absolute; transform: translate(-50%, -50%); padding: 4px 8px; border-radius: 12px; 
+            font-size: 0.75rem; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
             white-space: nowrap; z-index: 10; border: 2px solid white;
         }
         .pin:active { transform: translate(-50%, -50%) scale(0.9); }
         .pin.me { background: #2ecc71; color: white; z-index: 5; }
         .pin.stage { background: #3498db; z-index: 5; }
         
-        /* 時事紅點樣式 */
         .pin.red-dot {
-            width: 18px; height: 18px;
-            background-color: var(--danger);
-            border-radius: 50%;
-            padding: 0;
-            border: 2px solid white;
-            color: transparent; 
-            overflow: hidden;
-            animation: radarPulse 1.5s infinite; 
-            box-shadow: 0 0 0 rgba(255, 71, 87, 0.7);
-            transition: all 0.3s ease;
+            width: 18px; height: 18px; background-color: var(--danger); border-radius: 50%; padding: 0;
+            border: 2px solid white; color: transparent; overflow: hidden; animation: radarPulse 1.5s infinite; 
+            box-shadow: 0 0 0 rgba(255, 71, 87, 0.7); transition: all 0.3s ease;
         }
         
         @keyframes radarPulse {
@@ -133,24 +108,14 @@
             100% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
         }
 
-        .pin.red-dot.dimmed {
-            opacity: 0.15; 
-            animation: none; 
-            pointer-events: none; 
-            border-color: rgba(255,255,255,0.3);
-        }
-        
-        .pin.red-dot.ijen-active {
-            background-color: #F59E0B; 
-            animation: radarPulseIjen 1.2s infinite; 
-        }
+        .pin.red-dot.dimmed { opacity: 0.15; animation: none; pointer-events: none; border-color: rgba(255,255,255,0.3); }
+        .pin.red-dot.ijen-active { background-color: #F59E0B; animation: radarPulseIjen 1.2s infinite; }
         
         @keyframes radarPulseIjen {
             0% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8); }
             70% { transform: translate(-50%,-50%) scale(1.2); box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); }
             100% { transform: translate(-50%,-50%) scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
         }
-
         .map-actions { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
 
         /* --- 7. 購物車與其他 --- */
@@ -162,10 +127,8 @@
 
         /* --- 8. 底部導覽列 --- */
         .bottom-nav { 
-            position: fixed; bottom: 0; width: 100%; max-width: var(--max-width);
-            background: white; border-top: 1px solid #eee; 
-            display: flex; justify-content: space-around; 
-            padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); 
+            position: fixed; bottom: 0; width: 100%; max-width: var(--max-width); background: white; border-top: 1px solid #eee; 
+            display: flex; justify-content: space-around; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); 
             z-index: 900; box-sizing: border-box;
         }
         .nav-item { text-align: center; color: #999; font-size: 0.75rem; flex: 1; cursor: pointer; position: relative; }
@@ -233,13 +196,11 @@
         <div class="map-wrapper" id="map-viewport">
             <div id="map-content">
                 <img src="map.jpg" alt="園遊會地圖" onerror="this.src='https://via.placeholder.com/800x600?text=Please+Upload+map.jpg'">
-                
                 <div class="pin stage" style="top: 12%; left: 35%;" onclick="showInfo('司令台', '活動表演區')">司令台</div>
                 <div class="pin red-dot" id="pin-3y" style="top: 85%; left: 41%;" onclick="showClassInfo('商三乙')">商三乙</div>
                 <div class="pin red-dot" id="pin-f3" style="top: 85%; left: 46%;" onclick="showClassInfo('服三乙')">服三乙</div>
                 <div class="pin red-dot" id="pin-h2" style="top: 85%; left: 59%;" onclick="showClassInfo('家二乙')">家二乙</div>
                 <div class="pin red-dot" id="pin-f2" style="top: 20%; left: 69%;" onclick="showClassInfo('服二甲')">服二甲</div>
-                
                 <div class="pin me" style="top: 85%; left: 8%;" onclick="showInfo('服務台', '服務台 / 入口處')">服務台</div>
             </div>
         </div>
@@ -314,30 +275,23 @@
         { id: 6, class: '商三乙', name: '脆皮雞排', price: 70, tag: 'hot', desc: '現炸多汁，外酥內嫩。', sold: 300 }
     ];
 
-    let cart = [];
+    // ★ 修改：購物車資料結構變更，支援數量統計 ★
+    let cart = []; 
     let discount = 1;
-    let panzoomInstance = null; // 宣告地圖縮放實例
+    let panzoomInstance = null; 
 
     document.addEventListener("DOMContentLoaded", function() {
-        // ★ 新增：初始化 Panzoom 地圖縮放 ★
         const mapContent = document.getElementById('map-content');
         panzoomInstance = Panzoom(mapContent, {
-            maxScale: 4,        // 最大放大 4 倍
-            minScale: 1,        // 最小縮小到原本大小
-            step: 0.3,          // 每次縮放的級距
-            cursor: 'grab'
+            maxScale: 4, minScale: 1, step: 0.3, cursor: 'grab'
         });
 
-        // 綁定：滑鼠滾輪縮放
         const mapViewport = document.getElementById('map-viewport');
         mapViewport.addEventListener('wheel', panzoomInstance.zoomWithWheel);
 
-        // 綁定：縮放按鈕
         document.getElementById('btn-zoom-in').addEventListener('click', panzoomInstance.zoomIn);
         document.getElementById('btn-zoom-out').addEventListener('click', panzoomInstance.zoomOut);
-        document.getElementById('btn-zoom-reset').addEventListener('click', () => {
-            panzoomInstance.reset();
-        });
+        document.getElementById('btn-zoom-reset').addEventListener('click', () => { panzoomInstance.reset(); });
 
         let liffInitTimeout = setTimeout(function() {
             const loginPage = document.getElementById('page-login');
@@ -464,7 +418,6 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         el.classList.add('active');
         
-        // ★ 修復：切換到地圖時重新對齊一次 ★
         if(tabId === 'map' && panzoomInstance) {
             setTimeout(() => { panzoomInstance.reset(); }, 50);
         }
@@ -533,23 +486,72 @@
         else { resDiv.innerText = "可惜沒中..."; resDiv.style.color = "#666"; }
     }
 
-    function addToCart(id) { cart.push(products.find(p => p.id === id)); updateBadge(); }
-    function updateBadge() { const b = document.getElementById('cart-badge'); b.innerText = cart.length; b.style.display = cart.length>0?'block':'none'; }
+    // ★ 修改：加入購物車時，判斷是否已存在，若是則數量+1 ★
+    function addToCart(id) { 
+        let existingItem = cart.find(item => item.product.id === id);
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({ product: products.find(p => p.id === id), quantity: 1 });
+        }
+        updateBadge(); 
+    }
+
+    // ★ 修改：紅點數字顯示目前的「總物品數量」 ★
+    function updateBadge() { 
+        const b = document.getElementById('cart-badge'); 
+        let totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+        b.innerText = totalQty; 
+        b.style.display = totalQty > 0 ? 'block' : 'none'; 
+    }
     
+    // ★ 新增：調整購物車數量的按鈕功能 ★
+    function changeQuantity(index, delta) {
+        cart[index].quantity += delta;
+        if(cart[index].quantity <= 0) {
+            cart.splice(index, 1); // 數量 <= 0 時直接移除該商品
+        }
+        renderCart();
+        updateBadge();
+    }
+
+    // ★ 修改：購物車渲染改為「名稱 x 數量」以及 ➕ ➖ 按鈕 ★
     function renderCart() {
         const c = document.getElementById('cart-content'), s = document.getElementById('checkout-section');
-        if(cart.length===0) { c.innerHTML='<div style="text-align:center;color:#999;margin-top:20px;">空空如也</div>'; s.style.display='none'; return; }
-        c.innerHTML=''; let total=0;
-        cart.forEach((p,i)=>{ total+=p.price; c.innerHTML+=`<div class="product-item"><div class="p-info"><div class="p-name">${p.name}</div><div class="p-meta">$${p.price}</div></div><div style="color:red;font-weight:bold;cursor:pointer;" onclick="cart.splice(${i},1);renderCart();updateBadge()">✕</div></div>`; });
+        if(cart.length === 0) { c.innerHTML='<div style="text-align:center;color:#999;margin-top:40px;">購物車空空如也</div>'; s.style.display='none'; return; }
+        
+        c.innerHTML = ''; 
+        let total = 0;
+        
+        cart.forEach((item, i) => { 
+            let p = item.product;
+            let q = item.quantity;
+            let itemSum = p.price * q;
+            total += itemSum; 
+            
+            c.innerHTML += `
+            <div class="product-item">
+                <div class="p-info">
+                    <div class="p-name">${p.name} <span style="color:var(--danger); font-weight:bold; margin-left: 5px;">x${q}</span></div>
+                    <div class="p-meta">單價 $${p.price} / 小計 $${itemSum}</div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <div class="btn-add" style="background:#FEE2E2; color:#EF4444;" onclick="changeQuantity(${i}, -1)">-</div>
+                    <div class="btn-add" onclick="changeQuantity(${i}, 1)">+</div>
+                </div>
+            </div>`; 
+        });
+        
         let finalPrice = Math.floor(total * discount);
         document.getElementById('total-price').innerText = `$${finalPrice}` + (discount < 1 ? " (已折價)" : "");
-        s.style.display='block';
+        s.style.display = 'block';
     }
 
     function toggleDeliveryLocation() {
         document.getElementById('location-input-div').style.display = document.getElementById('delivery-check').checked ? 'block' : 'none';
     }
 
+    // ★ 修改：傳送給老闆的 LINE 訊息也同步顯示數量 ★
     function submitOrderWithLine() {
         const isDelivery = document.getElementById('delivery-check').checked;
         const location = document.getElementById('delivery-location').value;
@@ -559,7 +561,9 @@
         const userName = document.getElementById('user-display').innerText;
         
         let msg = `📋 [新訂單]\n訂購人：${userName}\n------------------\n`;
-        cart.forEach(p => { msg += `▫️ ${p.name} ($${p.price})\n`; });
+        cart.forEach(item => { 
+            msg += `▫️ ${item.product.name} x${item.quantity} ($${item.product.price * item.quantity})\n`; 
+        });
         msg += `------------------\n💰 總額：${finalPrice}\n📍 ${isDelivery ? '外送至：'+location : '自取'}`;
 
         if (liff.isInClient()) {
@@ -603,5 +607,3 @@
 </script>
 </body>
 </html>
-
-
