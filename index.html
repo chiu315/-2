@@ -571,41 +571,67 @@
         document.getElementById('location-input-div').style.display = document.getElementById('delivery-check').checked ? 'block' : 'none';
     }
 
-    function submitOrderWithLine() {
-        const isDelivery = document.getElementById('delivery-check').checked;
-        const location = document.getElementById('delivery-location').value;
-        if(isDelivery && !location) return showInfo("提示", "請輸入外送地點"); 
+   async function submitOrderWithLine() {
+    // 抓取網頁上的欄位資訊
+    const userName = document.getElementById('user-display').innerText;
+    const finalPrice = document.getElementById('total-price').innerText;
+    const isDelivery = document.getElementById('delivery-check').checked;
+    const location = document.getElementById('delivery-location').value;
 
-        const finalPrice = document.getElementById('total-price').innerText;
-        const userName = document.getElementById('user-display').innerText;
-        
-        let msg = `📋 [新訂單]\n訂購人：${userName}\n------------------\n`;
-        cart.forEach(item => { 
-            msg += `▫️ ${item.product.name} x${item.quantity} ($${item.product.price * item.quantity})\n`; 
+    if(isDelivery && !location) return showInfo("提示", "請輸入外送地點"); 
+
+    // 將資料打包，準備送給後端
+    const myOrder = {
+        userName: userName,
+        total: finalPrice,
+        cart: cart, 
+        delivery: isDelivery,
+        location: location
+    };
+
+    try {
+        // 第一步：呼叫後端 API 存檔
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(myOrder)
         });
 
-        // ★ 修改：如果有使用優惠券，標記為已使用並更新 localStorage ★
-        if (selectedCouponId !== -1) {
-            let usedCoupon = myCoupons.find(c => c.id === selectedCouponId);
-            if (usedCoupon) {
-                msg += `🎟️ 使用優惠：${usedCoupon.name}\n`;
-                usedCoupon.used = true; 
-                localStorage.setItem('myCoupons', JSON.stringify(myCoupons)); // 更新狀態到手機記憶體中
+        const result = await response.json();
+
+        if (result.success) {
+            // 第二步：後端存檔成功後，準備 LINE 訊息內容
+            let msg = `📋 [訂單編號: ${result.orderId}]\n訂購人：${userName}\n------------------\n`;
+            cart.forEach(item => { 
+                msg += `▫️ ${item.product.name} x${item.quantity}\n`; 
+            });
+            msg += `------------------\n💰 總額：${finalPrice}\n📍 ${isDelivery ? '外送至：'+location : '自取'}`;
+
+            // 第三步：發送 LINE 訊息 (如果有在 LINE 裡面的話)
+            if (typeof liff !== 'undefined' && liff.isInClient()) {
+                liff.sendMessages([{ type: 'text', text: msg }])
+                    .then(() => { 
+                        showInfo("成功", "訂單已記錄並傳送到聊天室！"); 
+                        resetCart(); 
+                    })
+                    .catch((err) => console.error(err));
+            } else {
+                showInfo("完成", "訂單已成功存入系統！(非 LINE 環境)");
+                resetCart();
             }
         }
-
-        msg += `------------------\n💰 總額：${finalPrice}\n📍 ${isDelivery ? '外送至：'+location : '自取'}`;
-
-        if (liff.isInClient()) {
-            liff.sendMessages([{ type: 'text', text: msg }])
-                .then(() => { showInfo("成功", "已傳送到聊天室！"); resetCart(); }) 
-                .catch((err) => { console.error(err); showInfo("錯誤", "傳送失敗"); }); 
-        } else {
-            showInfo("訂單已建立！", msg); 
-            resetCart();
-        }
+    } catch (error) {
+        console.error("傳送失敗:", error);
+        showInfo("錯誤", "無法連線至伺服器，請確認電腦端伺服器有啟動。");
     }
+}
 
+// 這是一個輔助函數，用來在下單成功後清空購物車
+function resetCart() {
+    cart = [];
+    updateBadge();
+    renderCart();
+}
     function resetCart() {
         cart = []; updateBadge(); 
         document.getElementById('delivery-check').checked = false;
@@ -638,3 +664,4 @@
 </script>
 </body>
 </html>
+
